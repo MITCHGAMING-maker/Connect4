@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>4 in a Row</title>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f2f2f2;
+        text-align: center;
+    }
+
+    h1 {
+        margin-top: 20px;
+    }
+
+    #status {
+        font-size: 20px;
+        margin: 15px;
+    }
+
+    #board {
+        display: grid;
+        grid-template-columns: repeat(7, 70px);
+        grid-template-rows: repeat(6, 70px);
+        gap: 6px;
+        background: #0047ab;
+        padding: 10px;
+        border-radius: 10px;
+        margin: 20px auto;
+        width: max-content;
+    }
+
+    .cell {
+        width: 70px;
+        height: 70px;
+        background: white;
+        border-radius: 50%;
+        cursor: pointer;
+    }
+
+    .p1 { background: red; }
+    .p2 { background: yellow; }
+
+    .win {
+        box-shadow: 0 0 15px 6px gold;
+        border: 3px solid gold;
+    }
+
+    button {
+        font-size: 16px;
+        padding: 10px 20px;
+        cursor: pointer;
+    }
+</style>
+</head>
+<body>
+
+<h1>4 in a Row</h1>
+<div id="status">Player 🔴 turn</div>
+
+<div id="board"></div>
+
+<button onclick="resetGame()">Restart</button>
+
+<script>
+const ROWS = 6;
+const COLS = 7;
+
+let board;
+let currentPlayer;
+let gameOver = false;
+let winningCells = [];
+
+const boardDiv = document.getElementById("board");
+const statusDiv = document.getElementById("status");
+
+// ---------- SOUND ----------
+function playWinSound() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [523, 659, 784, 1047]; // C E G C (happy!)
+    let time = ctx.currentTime;
+
+    notes.forEach(freq => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = "square";
+        osc.frequency.value = freq;
+
+        gain.gain.setValueAtTime(0.15, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(time);
+        osc.stop(time + 0.25);
+
+        time += 0.18;
+    });
+}
+// ---------------------------
+
+function resetGame() {
+    board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    currentPlayer = 1;
+    gameOver = false;
+    winningCells = [];
+    statusDiv.textContent = "Player 🔴 turn";
+    drawBoard();
+}
+
+function drawBoard() {
+    boardDiv.innerHTML = "";
+
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            cell.dataset.col = c;
+
+            if (board[r][c] === 1) cell.classList.add("p1");
+            if (board[r][c] === 2) cell.classList.add("p2");
+
+            if (winningCells.some(w => w.r === r && w.c === c)) {
+                cell.classList.add("win");
+            }
+
+            cell.addEventListener("click", () => play(c));
+            boardDiv.appendChild(cell);
+        }
+    }
+}
+
+function play(col) {
+    if (gameOver) return;
+
+    for (let row = ROWS - 1; row >= 0; row--) {
+        if (board[row][col] === 0) {
+            board[row][col] = currentPlayer;
+
+            const win = findWin(row, col);
+            if (win) {
+                winningCells = win;
+                gameOver = true;
+                statusDiv.textContent =
+                    currentPlayer === 1 ? "🔴 Player wins!" : "🟡 Player wins!";
+                playWinSound();
+            } else {
+                currentPlayer = currentPlayer === 1 ? 2 : 1;
+                statusDiv.textContent =
+                    currentPlayer === 1 ? "Player 🔴 turn" : "Player 🟡 turn";
+            }
+
+            drawBoard();
+            return;
+        }
+    }
+}
+
+function findWin(r, c) {
+    const directions = [
+        [0, 1],
+        [1, 0],
+        [1, 1],
+        [1, -1]
+    ];
+
+    for (const [dr, dc] of directions) {
+        const line = [{ r, c }];
+        collect(line, r, c, dr, dc);
+        collect(line, r, c, -dr, -dc);
+
+        if (line.length >= 4) return line;
+    }
+    return null;
+}
+
+function collect(line, r, c, dr, dc) {
+    const player = board[r][c];
+    r += dr;
+    c += dc;
+
+    while (
+        r >= 0 && r < ROWS &&
+        c >= 0 && c < COLS &&
+        board[r][c] === player
+    ) {
+        line.push({ r, c });
+        r += dr;
+        c += dc;
+    }
+}
+
+resetGame();
+</script>
+
+</body>
+</html>
